@@ -15,17 +15,21 @@ except:
     IPY = 0
 import sys
 import os
-import random
-import math
 import time
    
-CELL_CHAR = chr(0x25A0)
+CELL_CHAR = '██'
+DEAD_CHAR = '  '
 MAX_TIME = 200 #seconds
 
 class Game(object):
-    def __init__(self,size=int(50), starting_obj = 'glider'):
+    def __init__(self, size=None, starting_obj='glider'):
+        if size is None:
+            try:
+                cols, rows = os.get_terminal_size()
+                size = min((cols - 2) // 2, rows - 2)
+            except OSError:
+                size = 25
         self.size = size
-        self.cell = chr(0x25A0) #black square
         self.grid = []
         self.alive_cells = []
         self.local_dead_cells = []
@@ -107,12 +111,11 @@ class Game(object):
         start_time = time.time()
         frame = 1/tick_rate
         time_of_last_iteration = start_time
-        while(True):
-            if time.time() - start_time < MAX_TIME and time.time() - time_of_last_iteration < frame:
-                time.sleep(time_of_last_iteration+frame-time.time())
-                print(f'sleeping for {time_of_last_iteration+frame-time.time()}')
+        while time.time() - start_time < MAX_TIME:
+            if time.time() - time_of_last_iteration < frame:
+                time.sleep(max(0, time_of_last_iteration + frame - time.time()))
             else:
-                if not (alive := self.evolve()):
+                if not self.evolve():
                     print("All cells are dead")
                     return
                 time_of_last_iteration = time.time()
@@ -120,12 +123,16 @@ class Game(object):
     def __str__(self):
         if IPY: #for IPython like Colab
             clear_output()
-        elif os.name == 'posix':  # for Linux/Unix/Mac OS
-            os.system('clear')
-        else:  # for Windows
-            os.system('cls')
-        output = '\n'.join([' '.join([str(self.grid[i][j]) for j in range(self.size)]) for i in range(self.size)])
-        return output
+        else:
+            sys.stdout.write('\033[H')
+
+        top    = '┌' + '─' * (self.size * 2) + '┐'
+        bottom = '└' + '─' * (self.size * 2) + '┘'
+
+        rows = ['│' + ''.join(str(self.grid[i][j]) for j in range(self.size)) + '│'
+                for i in range(self.size)]
+
+        return '\n'.join([top] + rows + [bottom])
         
 class Cell(object):
     def __init__(self,parent,X:int,Y:int,alive=0):
@@ -173,4 +180,4 @@ class Cell(object):
         self.alive = status
 
     def __str__(self):
-        return CELL_CHAR if self.alive else ' '
+        return CELL_CHAR if self.alive else DEAD_CHAR
